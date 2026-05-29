@@ -48,6 +48,8 @@ class DiseaseCandidate(BaseModel):
 
 
 class DeepRareResult(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     candidates: List[DiseaseCandidate]
     total_variants_analyzed: int
     phenotype_terms_matched: int
