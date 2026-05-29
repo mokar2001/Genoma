@@ -5,7 +5,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import {
   Brain, Microscope, Atom, Download, RotateCcw,
-  CheckCircle2, Clock, FileText, Share2
+  CheckCircle2, Clock, FileText
 } from "lucide-react";
 import { usePipelineStore } from "@/store/pipelineStore";
 import DeepRarePanel from "@/components/results/DeepRarePanel";

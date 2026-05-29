@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Loader2, Clock, XCircle, Brain, Microscope, Atom, FileText, Dna } from "lucide-react";
+import { motion } from "framer-motion";
+import { CheckCircle2, Loader2, XCircle, Brain, Microscope, Atom, FileText, Dna } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PipelineStage, StageStatus, SSEEvent } from "@/types/pipeline";
 

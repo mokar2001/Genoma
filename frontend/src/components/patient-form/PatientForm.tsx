@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, ChevronRight, ChevronLeft, Loader2, Dna } from "lucide-react";
+import { ChevronRight, ChevronLeft, Loader2, Dna } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ETHNICITIES, FAMILIAL_TYPES, SEXES, type PatientFormValues } from "@/types/patient";
 import VcfUploader from "./VcfUploader";

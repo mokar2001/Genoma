@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { UseFormRegister, UseFormWatch, UseFormSetValue } from "react-hook-form";
+import type { UseFormRegister, UseFormWatch } from "react-hook-form";
 import type { PatientFormValues } from "@/types/patient";
 
 interface Props {
@@ -9,7 +8,7 @@ interface Props {
   prefix: "father" | "mother";
   register: UseFormRegister<PatientFormValues>;
   watch: UseFormWatch<PatientFormValues>;
-  setValue: UseFormSetValue<PatientFormValues>;
+  setValue?: unknown;
 }
 
 export default function ParentSection({ label, prefix, register, watch, setValue }: Props) {

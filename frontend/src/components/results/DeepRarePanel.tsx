@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Trophy, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useState } from "react";
-import { cn, scoreToPercent } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { DeepRareResult, DiseaseCandidate } from "@/types/pipeline";
 
 interface Props {
