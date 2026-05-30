@@ -46,6 +46,19 @@ async def run_pipeline(
     and DeepRare runs on phenotype data only.
     """
 
+    # Read file content eagerly BEFORE entering the generator —
+    # UploadFile is closed once the handler returns.
+    vcf_content: str = ""
+    has_vcf: bool = False
+    try:
+        if vcf_file is not None and vcf_file.filename not in ("", None):
+            vcf_bytes = await vcf_file.read()
+            if vcf_bytes:
+                vcf_content = vcf_bytes.decode("utf-8", errors="replace")
+                has_vcf = True
+    except Exception:
+        pass  # No VCF — continue with phenotype-only analysis
+
     async def event_stream() -> AsyncGenerator[str, None]:
         session_id = str(uuid.uuid4())[:8]
 
@@ -55,7 +68,6 @@ async def run_pipeline(
             suspected: list[str] = patient_data.get("suspected_diseases", [])
             patient_name = f"{patient_data.get('first_name', '')} {patient_data.get('last_name', '')}".strip()
 
-            has_vcf = vcf_file is not None and vcf_file.filename not in ("", None)
             variants: list[dict] = []
             variant_count = 0
 
@@ -68,8 +80,6 @@ async def run_pipeline(
                     message="Parsing VCF file…",
                 ))
 
-                vcf_bytes = await vcf_file.read()
-                vcf_content = vcf_bytes.decode("utf-8", errors="replace")
                 variants = parse_vcf(vcf_content)
                 variant_count = count_variants(vcf_content)
 
