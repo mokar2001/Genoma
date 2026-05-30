@@ -32,6 +32,19 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 @app.on_event("startup")
 async def startup():
     create_tables()
+    # Initialize HPO ontology + embeddings in background (non-blocking)
+    # First pipeline run may be slow if cache is cold; subsequent runs are fast
+    import asyncio
+    asyncio.create_task(_init_hpo_background())
+
+
+async def _init_hpo_background():
+    try:
+        from app.services.hpo_ontology import initialize
+        await initialize()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"HPO ontology init failed (non-fatal): {e}")
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
