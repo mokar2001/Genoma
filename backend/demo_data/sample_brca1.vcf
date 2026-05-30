@@ -1,0 +1,11 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency from gnomAD">
+##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol">
+##INFO=<ID=CLNSIG,Number=.,Type=String,Description="ClinVar clinical significance">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
+17	43057051	rs80357906	C	CC	312.4	PASS	AF=0.000012;GENE=BRCA1;CLNSIG=Pathogenic	GT:AD:DP:GQ	0/1:38,44:82:99
