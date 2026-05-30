@@ -14,18 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download BioLORD model so it's baked into the image
-# Falls back to MiniLM if BioLORD fails (network issues)
-RUN python -c "\
-from sentence_transformers import SentenceTransformer; \
-try: \
-    SentenceTransformer('FremyCompany/BioLORD-2023-C'); \
-    print('BioLORD loaded') \
-except Exception as e: \
-    print(f'BioLORD failed ({e}), downloading fallback'); \
-    SentenceTransformer('all-MiniLM-L6-v2'); \
-    print('MiniLM loaded') \
-"
+# Pre-download embedding model into the image
+COPY download_models.py .
+RUN python download_models.py
 
 COPY . .
 
