@@ -25,12 +25,15 @@ export default function DiagnosticsPage() {
     enabled: !!demoId,
   });
 
-  const handleSubmit = async (data: PatientFormValues, file: File) => {
+  const handleSubmit = async (data: PatientFormValues, file: File | null) => {
     reset();
     setRunning(true);
 
     const formData = new FormData();
-    formData.append("vcf_file", file);
+    // Only attach VCF if the user actually uploaded one
+    if (file && file.size > 0) {
+      formData.append("vcf_file", file);
+    }
     formData.append(
       "patient_json",
       JSON.stringify({

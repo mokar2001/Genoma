@@ -56,7 +56,7 @@ const STEPS = [
 
 interface Props {
   defaultValues?: Partial<PatientFormValues>;
-  onSubmit: (data: PatientFormValues, file: File) => void;
+  onSubmit: (data: PatientFormValues, file: File | null) => void;
   loading?: boolean;
 }
 
@@ -81,16 +81,7 @@ export default function PatientForm({ defaultValues, onSubmit, loading }: Props)
   const { register, handleSubmit, watch, setValue, formState: { errors } } = form;
 
   const handleFinalSubmit = (data: PatientFormValues) => {
-    if (!vcfFile) {
-      // Create a minimal mock VCF file for demo
-      const blob = new Blob(["##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"], {
-        type: "text/plain",
-      });
-      const mockFile = new File([blob], "demo.vcf", { type: "text/plain" });
-      onSubmit(data, mockFile);
-    } else {
-      onSubmit(data, vcfFile);
-    }
+    onSubmit(data, vcfFile as File);
   };
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
