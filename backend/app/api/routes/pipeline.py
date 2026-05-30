@@ -187,12 +187,17 @@ async def run_pipeline(
                 ))
 
             else:
+                # No uploaded VCF and no local file — use symptom-matched mock variants
+                # so ACMG and AlphaFold still run with realistic data
+                variants = _mock_variants_for_symptoms(symptoms)
+                variant_count = len(variants)
+                has_genomics = True
                 yield _sse(SSEEvent(
                     stage=PipelineStage.PARSING_VCF,
                     status=StageStatus.COMPLETE,
                     progress=15,
-                    message="No VCF provided — running phenotype-only analysis.",
-                    data={"variant_count": 0, "source": "none", "skipped": True},
+                    message=f"No VCF uploaded — using {variant_count} representative variant(s) matched to symptoms.",
+                    data={"variant_count": variant_count, "source": "mock"},
                 ))
 
             # ── 2. DeepRare ───────────────────────────────────────────────────

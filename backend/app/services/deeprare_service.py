@@ -507,8 +507,8 @@ def _resolve_disease_name(disease_id: str) -> str:
     if disease_id in _ORPHA_ID_NAME_CACHE:
         return _ORPHA_ID_NAME_CACHE[disease_id]
 
-    # Build a short lookup from known IDs
     KNOWN = {
+        # OMIM IDs → disease names
         "OMIM:154700": "Marfan Syndrome",
         "OMIM:277900": "Wilson Disease",
         "OMIM:604370": "Hereditary Breast and Ovarian Cancer Syndrome",
@@ -525,17 +525,76 @@ def _resolve_disease_name(disease_id: str) -> str:
         "OMIM:607014": "Alport Syndrome",
         "OMIM:143100": "Huntington Disease",
         "OMIM:176000": "Osteogenesis Imperfecta",
+        "OMIM:300200": "Adrenoleukodystrophy",
+        "OMIM:248200": "Maple Syrup Urine Disease",
+        "OMIM:261600": "Pompe Disease",
+        "OMIM:607208": "CHARGE Syndrome",
+        "OMIM:194050": "Williams Syndrome",
+        "OMIM:176270": "Prader-Willi Syndrome",
+        "OMIM:105830": "Angelman Syndrome",
+        "OMIM:613490": "Dravet Syndrome",
+        "OMIM:309550": "Lowe Syndrome",
+        "OMIM:248500": "Niemann-Pick Disease",
+        "OMIM:230000": "Gaucher Disease Type 1",
+        "OMIM:251000": "Homocystinuria",
+        "OMIM:266200": "Refsum Disease",
+        "OMIM:232200": "Hereditary Hemochromatosis",
+        "OMIM:208900": "Ataxia-Telangiectasia",
+        "OMIM:227650": "Glutaric Acidemia Type 1",
+        "OMIM:200400": "Aceruloplasminemia",
+        "OMIM:103580": "Alpha-1 Antitrypsin Deficiency",
+        "OMIM:300500": "Menkes Disease",
+        "OMIM:612953": "Pheochromocytoma",
+        "OMIM:171300": "Pheochromocytoma",
+        "OMIM:236200": "Hemolytic Uremic Syndrome",
+        "OMIM:606462": "Tuberous Sclerosis Complex 2",
+        "OMIM:193300": "Von Hippel-Lindau Disease",
+        "OMIM:101000": "Achondroplasia",
+        "OMIM:166200": "Noonan Syndrome",
+        "OMIM:176450": "Costello Syndrome",
+        "OMIM:218040": "Cardiofaciocutaneous Syndrome",
+        "OMIM:610253": "LEOPARD Syndrome",
+        "OMIM:151623": "Li-Fraumeni Syndrome",
+        "OMIM:131100": "Multiple Endocrine Neoplasia Type 1",
+        "OMIM:171400": "Multiple Endocrine Neoplasia Type 2A",
+        "OMIM:162300": "Multiple Endocrine Neoplasia Type 2B",
+        # ORPHA IDs → disease names
+        "ORPHA:558":   "Marfan Syndrome",
+        "ORPHA:905":   "Wilson Disease",
+        "ORPHA:145":   "Hereditary Breast and Ovarian Cancer Syndrome",
+        "ORPHA:586":   "Cystic Fibrosis",
+        "ORPHA:98473": "Duchenne Muscular Dystrophy",
+        "ORPHA:636":   "Neurofibromatosis Type 1",
+        "ORPHA:805":   "Tuberous Sclerosis Complex",
+        "ORPHA:778":   "Rett Syndrome",
+        "ORPHA:355":   "Gaucher Disease",
+        "ORPHA:324":   "Fabry Disease",
+        "ORPHA:716":   "Phenylketonuria",
+        "ORPHA:72":    "Maple Syrup Urine Disease",
+        "ORPHA:365":   "Pompe Disease",
+        "ORPHA:48556": "CHARGE Syndrome",
+        "ORPHA:897":   "Williams Syndrome",
+        "ORPHA:739":   "Prader-Willi Syndrome",
+        "ORPHA:29072": "Pheochromocytoma",
+        "ORPHA:100093":"Carcinoid Syndrome",
+        "ORPHA:60030": "Loeys-Dietz Syndrome",
+        "ORPHA:287":   "Ehlers-Danlos Syndrome, Classical",
+        "ORPHA:649":   "Multiple Endocrine Neoplasia Type 2A",
+        "ORPHA:508":   "Alpha-1 Antitrypsin Deficiency",
+        "ORPHA:56":    "Niemann-Pick Disease",
+        "ORPHA:79232": "Dravet Syndrome",
+        "ORPHA:440":   "Ataxia-Telangiectasia",
+        "ORPHA:308":   "Homocystinuria",
+        "ORPHA:53699": "Von Hippel-Lindau Disease",
+        "ORPHA:15":    "Achondroplasia",
+        "ORPHA:648":   "Noonan Syndrome",
     }
 
     name = KNOWN.get(disease_id, "")
     if not name:
-        # Generic: show the ID itself formatted nicely
-        if "OMIM:" in disease_id:
-            name = f"OMIM disease {disease_id.replace('OMIM:', '')}"
-        elif "ORPHA:" in disease_id:
-            name = f"Orphanet disease {disease_id.replace('ORPHA:', '')}"
-        else:
-            return ""
+        # Try to look up via Orphanet API (async not available here, skip)
+        # Return empty string to exclude unknown IDs from results
+        return ""
 
     _ORPHA_ID_NAME_CACHE[disease_id] = name
     return name
