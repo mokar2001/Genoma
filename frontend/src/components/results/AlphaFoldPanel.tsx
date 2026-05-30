@@ -61,12 +61,11 @@ function StructureCard({ result: r, index }: { result: AlphaFoldResult; index: n
       const w = containerRef.current.clientWidth || 480;
       const h = 280;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const viewer = $3Dmol.createViewer(containerRef.current, {
         backgroundColor: "0x0f172a",
-        width: w,
-        height: h,
         antialias: true,
-      });
+      } as any);
 
       viewerInstanceRef.current = viewer;
 
@@ -123,13 +122,12 @@ function StructureCard({ result: r, index }: { result: AlphaFoldResult; index: n
         viewer.addLabel(
           `${r.wild_type_structure.wild_type_residue}${variantPos}${activeView === "mut" ? r.wild_type_structure.mutant_residue : ""}`,
           {
-            position: { resi: variantPos },
             backgroundColor: "0x1e293b",
             fontColor: "white",
             fontSize: 12,
             borderThickness: 1,
             borderColor: "0x6366f1",
-          }
+          } as any
         );
       }
 
