@@ -4,7 +4,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from app.core.config import settings
 from app.core.database import create_tables
-from app.api.routes import pipeline, report, demo, auth, cases
+from app.api.routes import pipeline, report, demo, auth, cases, proxy
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -53,6 +53,7 @@ app.include_router(cases.router, prefix="/api")
 app.include_router(pipeline.router, prefix="/api")
 app.include_router(report.router, prefix="/api")
 app.include_router(demo.router, prefix="/api")
+app.include_router(proxy.router, prefix="/api")
 
 
 @app.get("/api/health")
