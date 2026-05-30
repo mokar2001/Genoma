@@ -24,8 +24,9 @@ class Settings(BaseSettings):
 
     # LLM (any one is enough)
     OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = ""          # override for Groq / OpenRouter / Ollama
     ANTHROPIC_API_KEY: str = ""
-    LLM_MODEL: str = "gpt-4o-mini"  # or claude-3-haiku-20240307
+    LLM_MODEL: str = "llama-3.1-8b-instant"
 
     # Pipeline delays for mock mode (when no LLM key)
     MOCK_MODE: bool = True  # auto-disabled when API key present
