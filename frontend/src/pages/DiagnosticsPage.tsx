@@ -29,6 +29,22 @@ export default function DiagnosticsPage() {
     reset();
     setRunning(true);
 
+    // Create a case record in the database first
+    let caseId: string | null = null;
+    try {
+      const patientName = `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim();
+      const caseTitle = patientName
+        ? `${patientName} — ${new Date().toLocaleDateString()}`
+        : `Case ${new Date().toLocaleDateString()}`;
+      const caseResp = await axios.post("/api/cases", {
+        title: caseTitle,
+        patient_data: { ...data, symptoms: data.symptoms ?? [], suspected_diseases: data.suspected_diseases ?? [] },
+      });
+      caseId = caseResp.data.id as string;
+    } catch {
+      // Non-fatal: pipeline can still run without a persisted case
+    }
+
     const formData = new FormData();
     // Only attach VCF if the user actually uploaded one
     if (file && file.size > 0) {
@@ -42,6 +58,9 @@ export default function DiagnosticsPage() {
         suspected_diseases: data.suspected_diseases ?? [],
       })
     );
+    if (caseId) {
+      formData.append("case_id", caseId);
+    }
 
     try {
       const response = await fetch("/api/pipeline/run", {

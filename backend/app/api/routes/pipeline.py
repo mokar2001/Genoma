@@ -10,6 +10,7 @@ VCF priority:
 import json
 import uuid
 import os
+from datetime import datetime
 from typing import AsyncGenerator, Optional
 
 from fastapi import APIRouter, UploadFile, File, Form
@@ -57,14 +58,41 @@ def _mock_variants_for_symptoms(symptoms: list[str]) -> list[dict]:
     return MOCK_VARIANTS["wilson"]
 
 
+def _update_case_status(case_id: str, status: str, result: dict = None) -> None:
+    """Update case status in DB. Silently skips if case_id is absent or DB unavailable."""
+    if not case_id:
+        return
+    try:
+        from app.core.database import SessionLocal
+        from app.models.db.case import Case
+        db = SessionLocal()
+        try:
+            case = db.query(Case).filter(Case.id == case_id).first()
+            if case:
+                case.status = status
+                case.updated_at = datetime.utcnow()
+                if status == "complete" and result is not None:
+                    case.result = result
+                    case.completed_at = datetime.utcnow()
+                elif status == "failed":
+                    case.completed_at = datetime.utcnow()
+                db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"Could not update case {case_id} status: {e}")
+
+
 @router.post("/run")
 async def run_pipeline(
     patient_json: str = Form(...),
     vcf_file: Optional[UploadFile] = File(default=None),
+    case_id: Optional[str] = Form(default=None),
 ):
     # ── Read uploaded VCF eagerly before entering generator ──────────────────
     vcf_content: str = ""
     vcf_source: str = "none"
+    vcf_filename: Optional[str] = None
 
     try:
         if vcf_file is not None and vcf_file.filename not in ("", None):
@@ -72,6 +100,7 @@ async def run_pipeline(
             if raw:
                 vcf_content = raw.decode("utf-8", errors="replace")
                 vcf_source = "upload"
+                vcf_filename = vcf_file.filename
     except Exception as e:
         logger.warning(f"Could not read uploaded VCF: {e}")
 
@@ -93,6 +122,24 @@ async def run_pipeline(
             local_variants = []
     else:
         local_variants = []
+
+    # Mark case as running at startup (before generator)
+    if case_id:
+        _update_case_status(case_id, "running")
+        if vcf_filename:
+            try:
+                from app.core.database import SessionLocal
+                from app.models.db.case import Case
+                db = SessionLocal()
+                try:
+                    case = db.query(Case).filter(Case.id == case_id).first()
+                    if case:
+                        case.vcf_filename = vcf_filename
+                        db.commit()
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.warning(f"Could not update vcf_filename for case {case_id}: {e}")
 
     async def event_stream() -> AsyncGenerator[str, None]:
         session_id = str(uuid.uuid4())[:8]
@@ -241,7 +288,7 @@ async def run_pipeline(
                 message="Compiling diagnostic report…",
             ))
 
-            top      = deeprare_result.candidates[0]
+            top = deeprare_result.candidates[0]
             act_count = acmg_result.pathogenic_count + acmg_result.likely_pathogenic_count
 
             summary = (
@@ -262,6 +309,9 @@ async def run_pipeline(
                 report_url=f"/api/report/{session_id}",
             )
 
+            # Persist result to DB if case_id provided
+            _update_case_status(case_id, "complete", final_result.model_dump())
+
             yield _sse(SSEEvent(
                 stage=PipelineStage.COMPLETE,
                 status=StageStatus.COMPLETE,
@@ -272,6 +322,7 @@ async def run_pipeline(
 
         except Exception as exc:
             logger.exception("Pipeline error")
+            _update_case_status(case_id, "failed")
             yield _sse(SSEEvent(
                 stage=PipelineStage.ERROR,
                 status=StageStatus.ERROR,

@@ -13,6 +13,48 @@ logger = logging.getLogger(__name__)
 # ── Local curated map (most common rare-disease phenotypes) ──────────────────
 # Format: lowercase symptom → HP:XXXXXXX
 LOCAL_HPO_MAP: dict[str, str] = {
+    # Cardiovascular / autonomic
+    "hypertension": "HP:0000822",
+    "arterial hypertension": "HP:0000822",
+    "high blood pressure": "HP:0000822",
+    "hypotension": "HP:0002615",
+    "tachycardia": "HP:0001649",
+    "bradycardia": "HP:0001662",
+    "palpitations": "HP:0001962",
+
+    # Autonomic / skin
+    "hyperhidrosis": "HP:0000970",
+    "excessive sweating": "HP:0000970",
+    "diaphoresis": "HP:0000970",
+    "anhidrosis": "HP:0000966",
+    "flushing": "HP:0001310",
+    "raynaud phenomenon": "HP:0100576",
+
+    # Immune / allergy
+    "hypersensitivity": "HP:0002099",
+    "allergic reaction": "HP:0012393",
+    "anaphylaxis": "HP:0002197",
+    "urticaria": "HP:0001025",
+    "angioedema": "HP:0100665",
+    "eczema": "HP:0000964",
+    "autoimmunity": "HP:0002960",
+
+    # General
+    "fatigue": "HP:0012378",
+    "chronic fatigue": "HP:0012378",
+    "weight loss": "HP:0001824",
+    "weight gain": "HP:0004324",
+    "fever": "HP:0001945",
+    "recurrent fever": "HP:0001954",
+    "pain": "HP:0012531",
+    "chronic pain": "HP:0012531",
+    "headache": "HP:0002315",
+    "migraine": "HP:0002076",
+    "nausea": "HP:0002018",
+    "vomiting": "HP:0002013",
+    "diarrhea": "HP:0002014",
+    "constipation": "HP:0002019",
+
     # Marfan / connective tissue
     "arachnodactyly": "HP:0001166",
     "pectus excavatum": "HP:0000767",

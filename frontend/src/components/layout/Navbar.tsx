@@ -1,22 +1,38 @@
-import { Link, useLocation } from "react-router-dom";
-import { Dna, Moon, Sun, FlaskConical } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Dna, Moon, Sun, FlaskConical, LogOut, UserCircle } from "lucide-react";
 import { useThemeStore } from "@/store/themeStore";
+import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
-
-const NAV = [
-  { to: "/", label: "Home" },
-  { to: "/diagnose", label: "New Diagnosis" },
-];
 
 export default function Navbar() {
   const { dark, toggle } = useThemeStore();
   const { pathname } = useLocation();
+  const { token, user, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const NAV = [
+    { to: "/", label: "Home" },
+    ...(token
+      ? [
+          { to: "/diagnose", label: "New Diagnosis" },
+          { to: "/cases", label: "Cases" },
+        ]
+      : []),
+  ];
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-md dark:bg-slate-900/80">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 font-bold text-indigo-600 dark:text-indigo-400">
+        <Link
+          to="/"
+          className="flex items-center gap-2 font-bold text-indigo-600 dark:text-indigo-400"
+        >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md">
             <Dna className="h-5 w-5 text-white" />
           </div>
@@ -60,6 +76,29 @@ export default function Navbar() {
           >
             {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
+
+          {token && user ? (
+            <div className="ml-2 flex items-center gap-2">
+              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                <UserCircle className="h-3.5 w-3.5" />
+                {user.full_name.split(" ")[0]}
+              </div>
+              <button
+                onClick={handleLogout}
+                className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                title="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/auth"
+              className="ml-2 gradient-brand rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              Sign In
+            </Link>
+          )}
         </nav>
       </div>
     </header>
