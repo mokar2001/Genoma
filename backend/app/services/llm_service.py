@@ -215,7 +215,10 @@ def _mock_clinical_questions(symptoms: list[str], diseases: list[str]) -> list[d
 
 async def _call_openai(prompt: str, json_mode: bool = True) -> dict:
     from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    client = AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL if settings.OPENAI_BASE_URL else None,
+    )
 
     kwargs: dict = {
         "model": settings.LLM_MODEL,
