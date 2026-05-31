@@ -11,6 +11,7 @@ Also indexes the platform's own completed cases so the DB grows over time.
 """
 
 import logging
+import uuid
 from typing import Optional
 
 from qdrant_client import QdrantClient
@@ -24,8 +25,16 @@ from app.services.embedding_service import embed, get_model
 logger = logging.getLogger(__name__)
 
 COLLECTION = "rare_cases"
+_QDRANT_NS = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")  # fixed namespace
 _client: Optional[QdrantClient] = None
 _vector_size: Optional[int] = None
+
+
+def _to_point_id(raw_id: str) -> str:
+    """Deterministic UUID for any string id (Qdrant requires uint64 or UUID)."""
+    if not raw_id:
+        return str(uuid.uuid4())
+    return str(uuid.uuid5(_QDRANT_NS, raw_id))
 
 
 def get_client() -> QdrantClient:
@@ -79,10 +88,15 @@ def index_cases(cases: list[dict], batch_size: int = 256, progress_cb=None) -> i
 
         points = []
         for (case, _), vec in zip(valid, vectors):
+            # Qdrant point IDs must be uint64 or UUID — convert any string id
+            # deterministically to a UUID5 so re-indexing is idempotent.
+            raw_id = str(case.get("id", ""))
+            point_id = _to_point_id(raw_id)
             points.append(PointStruct(
-                id=case["id"],
+                id=point_id,
                 vector=vec.tolist(),
                 payload={
+                    "orig_id": raw_id,
                     "disease": case.get("disease", ""),
                     "hpo_ids": case.get("hpo_ids", []),
                     "hpo_names": case.get("hpo_names", []),
