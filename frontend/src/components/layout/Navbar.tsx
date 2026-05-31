@@ -16,6 +16,7 @@ export default function Navbar() {
       ? [
           { to: "/diagnose", label: "New Diagnosis" },
           { to: "/cases", label: "Cases" },
+          { to: "/pipelines", label: "Pipelines" },
         ]
       : []),
   ];

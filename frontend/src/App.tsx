@@ -7,6 +7,7 @@ import HomePage from "@/pages/HomePage";
 import DiagnosticsPage from "@/pages/DiagnosticsPage";
 import ResultsPage from "@/pages/ResultsPage";
 import CasesPage from "@/pages/CasesPage";
+import PipelinesPage from "@/pages/PipelinesPage";
 import AuthPage from "@/pages/AuthPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -51,6 +52,14 @@ export default function App() {
           element={
             <RequireAuth>
               <CasesPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/pipelines"
+          element={
+            <RequireAuth>
+              <PipelinesPage />
             </RequireAuth>
           }
         />

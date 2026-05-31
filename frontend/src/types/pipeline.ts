@@ -1,10 +1,13 @@
 export type PipelineStage =
   | "queued"
+  | "sequencing"
   | "parsing_vcf"
-  | "deeprare"
-  | "acmg"
-  | "alphafold"
-  | "generating_report"
+  | "phenotype"
+  | "similarity"
+  | "literature"
+  | "prioritization"
+  | "structure"
+  | "diagnosis"
   | "complete"
   | "error";
 
@@ -16,6 +19,60 @@ export interface SSEEvent {
   progress: number;
   message: string;
   data?: Record<string, unknown>;
+}
+
+export interface PhenotypeTerm {
+  term: string;
+  original: string;
+  hpo_id: string;
+  source: string;
+  score: number;
+}
+
+export interface SimilarCase {
+  disease: string;
+  score: number;
+  source: string;
+  gene: string;
+  orpha_code: string;
+  omim_id: string;
+  hpo_overlap: string[];
+  overlap_count: number;
+}
+
+export interface LiteratureItem {
+  title: string;
+  authors: string;
+  journal: string;
+  year: string;
+  pmid: string;
+  doi: string;
+  url: string;
+  snippet: string;
+  citations: number;
+  source: string;
+}
+
+export interface PrioritizedVariant {
+  gene: string;
+  cdna_change: string;
+  protein_change: string;
+  chromosome: string;
+  position: number;
+  ref: string;
+  alt: string;
+  zygosity: string;
+  gnomad_af: number;
+  consequence: string;
+  clinvar_significance: string;
+  franklin?: string | null;
+  alphamissense?: { am_pathogenicity: number; am_class: string } | null;
+  is_lof: boolean;
+  is_missense: boolean;
+  gene_phenotype_match: boolean;
+  priority_score: number;
+  priority_reasons: string[];
+  novel: boolean;
 }
 
 export type ACMGClassification =

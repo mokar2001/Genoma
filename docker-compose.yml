@@ -1,4 +1,49 @@
 services:
+  # ── Postgres: cases, users, jobs, variants, phenotypes ──────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: raredx-postgres
+    environment:
+      POSTGRES_USER: raredx
+      POSTGRES_PASSWORD: raredx_secret
+      POSTGRES_DB: raredx
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raredx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Redis: Celery broker + result backend + progress pub/sub ────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: raredx-redis
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Qdrant: vector DB for case similarity (RareBench corpus) ────────────────
+  qdrant:
+    image: qdrant/qdrant:v1.9.2
+    container_name: raredx-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  # ── Backend: FastAPI (API only — no heavy work here) ────────────────────────
   backend:
     build:
       context: ./backend
@@ -9,11 +54,57 @@ services:
     volumes:
       - ./backend:/app
       - hpo_cache:/app/cache
-    environment:
-      - DEBUG=true
+      - raredx_data:/data
     env_file:
       - .env
+    environment:
+      - SENTENCE_TRANSFORMERS_HOME=/app/cache/models
+      - HF_HOME=/app/cache/models
+      - DATABASE_URL=postgresql://raredx:raredx_secret@postgres:5432/raredx
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_URL=http://qdrant:6333
+      - DATA_DIR=/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
     restart: unless-stopped
+
+  # ── Celery worker: pipelines, embeddings, scoring, structure analysis ───────
+  worker:
+    build:
+      context: ./backend
+      dockerfile: worker/Dockerfile
+    container_name: raredx-worker
+    volumes:
+      - ./backend:/app
+      - hpo_cache:/app/cache
+      - raredx_data:/data
+      # Mount host Docker socket so Nextflow can spawn nf-core containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - .env
+    environment:
+      - SENTENCE_TRANSFORMERS_HOME=/app/cache/models
+      - HF_HOME=/app/cache/models
+      - DATABASE_URL=postgresql://raredx:raredx_secret@postgres:5432/raredx
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_URL=http://qdrant:6333
+      - DATA_DIR=/data
+      # Nextflow needs to know the HOST path of the data dir for docker.sock mounts
+      - HOST_DATA_DIR=${HOST_DATA_DIR:-/var/lib/docker/volumes/genoma_raredx_data/_data}
+      - NXF_HOME=/data/.nextflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Frontend ────────────────────────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -26,7 +117,11 @@ services:
     restart: unless-stopped
 
 volumes:
+  pg_data:
+  redis_data:
+  qdrant_data:
   hpo_cache:
+  raredx_data:
 
 networks:
   default:

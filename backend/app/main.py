@@ -4,7 +4,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from app.core.config import settings
 from app.core.database import create_tables
-from app.api.routes import pipeline, report, demo, auth, cases, proxy
+from app.api.routes import pipeline, report, demo, auth, cases, proxy, pipelines
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -54,6 +54,33 @@ app.include_router(pipeline.router, prefix="/api")
 app.include_router(report.router, prefix="/api")
 app.include_router(demo.router, prefix="/api")
 app.include_router(proxy.router, prefix="/api")
+app.include_router(pipelines.router, prefix="/api")
+
+
+@app.get("/api/system/status")
+async def system_status():
+    """Report readiness of subsystems."""
+    from app.services.case_similarity import collection_stats
+    status = {"mock_mode": settings.MOCK_MODE}
+    try:
+        status["case_index"] = collection_stats()
+    except Exception:
+        status["case_index"] = {"exists": False, "count": 0}
+    try:
+        from app.services.alphamissense import is_available
+        status["alphamissense"] = is_available()
+    except Exception:
+        status["alphamissense"] = False
+    status["franklin"] = bool(settings.FRANKLIN_API_KEY)
+    return status
+
+
+@app.post("/api/system/index-cases")
+async def trigger_index():
+    """Kick off the one-time RareBench -> Qdrant indexing (idempotent)."""
+    from app.tasks.indexing_tasks import index_rarebench
+    task = index_rarebench.delay()
+    return {"task_id": task.id, "status": "indexing_started"}
 
 
 @app.get("/api/health")

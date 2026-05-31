@@ -9,9 +9,12 @@ interface Props {
 
 export default function VcfUploader({ file, onFile }: Props) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: { "text/plain": [".vcf", ".txt"], "application/octet-stream": [".vcf"] },
+    accept: {
+      "text/plain": [".vcf", ".txt"],
+      "application/octet-stream": [".vcf", ".gz", ".bam", ".cram", ".fastq", ".fq"],
+    },
     maxFiles: 1,
-    maxSize: 50 * 1024 * 1024,
+    maxSize: 200 * 1024 * 1024 * 1024, // 200 GB
     onDropAccepted: ([f]) => onFile(f),
   });
 
@@ -54,10 +57,13 @@ export default function VcfUploader({ file, onFile }: Props) {
       </div>
       <div>
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-          {isDragActive ? "Drop your VCF here" : "Upload VCF File"}
+          {isDragActive ? "Drop your file here" : "Upload Genomic File"}
         </p>
         <p className="text-xs text-slate-500">
-          Drag & drop or click to browse · VCF 4.1/4.2 · Max 50 MB
+          VCF · FASTQ · BAM/CRAM · Drag & drop or click · up to 200 GB
+        </p>
+        <p className="text-xs text-slate-400">
+          FASTQ runs nf-core/sarek → VCF · VCF is used directly
         </p>
       </div>
     </div>
