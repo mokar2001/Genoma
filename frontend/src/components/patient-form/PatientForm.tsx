@@ -82,7 +82,21 @@ export default function PatientForm({ defaultValues, onSubmit, loading }: Props)
   const { register, handleSubmit, watch, setValue, formState: { errors } } = form;
 
   const handleFinalSubmit = (data: PatientFormValues) => {
+    // Only actually run the pipeline from the final (Genomics) step.
+    // Guards against Enter-key submits on earlier steps.
+    if (step !== STEPS.length - 1) {
+      setStep((s) => Math.min(s + 1, STEPS.length - 1));
+      return;
+    }
     onSubmit(data, vcfFile as File, useSample);
+  };
+
+  // Prevent Enter in text inputs from submitting the form (textarea is fine)
+  const blockEnterSubmit = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    const target = e.target as HTMLElement;
+    if (e.key === "Enter" && target.tagName !== "TEXTAREA") {
+      e.preventDefault();
+    }
   };
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
@@ -128,7 +142,7 @@ export default function PatientForm({ defaultValues, onSubmit, loading }: Props)
         ))}
       </div>
 
-      <form onSubmit={handleSubmit(handleFinalSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(handleFinalSubmit)} onKeyDown={blockEnterSubmit} className="space-y-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}

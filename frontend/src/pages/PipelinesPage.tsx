@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { motion } from "framer-motion";
@@ -23,13 +24,23 @@ export default function PipelinesPage() {
     refetchInterval: 5000,
   });
 
+  const [installing, setInstalling] = useState<string | null>(null);
+
   const install = useMutation({
-    mutationFn: (name: string) => axios.post("/api/pipelines/install", { name }),
+    mutationFn: (name: string) => {
+      setInstalling(name);
+      // nextflow pull can take a couple of minutes — allow a long client timeout
+      return axios.post("/api/pipelines/install", { name }, { timeout: 290000 });
+    },
     onSuccess: (_, name) => {
-      toast.success(`Installing ${name}…`, { description: "This runs in the background (nextflow pull)." });
+      toast.success(`${name} installed`, { description: "Pipeline pulled and ready to run." });
       qc.invalidateQueries({ queryKey: ["pipelines-registry"] });
     },
-    onError: () => toast.error("Install failed to start"),
+    onError: (err: any, name) => {
+      const detail = err?.response?.data?.detail || err?.message || "Unknown error";
+      toast.error(`Failed to install ${name}`, { description: String(detail).slice(0, 200) });
+    },
+    onSettled: () => setInstalling(null),
   });
 
   if (isLoading) {
@@ -71,7 +82,11 @@ export default function PipelinesPage() {
               ) : (
                 <button onClick={() => install.mutate(p.name)} disabled={install.isPending}
                   className="flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
-                  <Download className="h-3 w-3" /> Install
+                  {installing === p.name ? (
+                    <><Loader2 className="h-3 w-3 animate-spin" /> Installing…</>
+                  ) : (
+                    <><Download className="h-3 w-3" /> Install</>
+                  )}
                 </button>
               )}
             </div>

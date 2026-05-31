@@ -57,7 +57,32 @@ def install(req: InstallRequest, db: Session = Depends(get_db),
     from app.tasks.pipeline_tasks import install_pipeline_task
     task = install_pipeline_task.delay(req.name, req.revision)
 
-    return {"job_id": task.id, "pipeline": req.name, "status": "installing"}
+    # Wait for the worker to actually finish `nextflow pull`
+    # (kept under the nginx 300s proxy timeout).
+    try:
+        result = task.get(timeout=280, propagate=False)
+    except Exception as e:
+        rec.status = "failed"
+        db.commit()
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                "Install did not finish in time. Make sure the worker container is "
+                f"running and healthy (docker compose ps / logs worker). Detail: {e}"
+            ),
+        )
+
+    if isinstance(result, dict) and result.get("success"):
+        rec.status = "installed"
+        db.commit()
+        return {"pipeline": req.name, "status": "installed",
+                "output": (result.get("output", "") or "")[-1000:]}
+
+    rec.status = "failed"
+    db.commit()
+    output = result.get("output", "") if isinstance(result, dict) else str(result)
+    raise HTTPException(status_code=500,
+                        detail=f"Install failed: {(output or 'unknown error')[-800:]}")
 
 
 @router.get("/install/{task_id}")
