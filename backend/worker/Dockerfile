@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     gnupg \
     procps \
-    openjdk-17-jre-headless \
+    default-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI (to talk to mounted host socket)
