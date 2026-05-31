@@ -64,6 +64,8 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - QDRANT_URL=http://qdrant:6333
       - DATA_DIR=/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -97,6 +99,8 @@ services:
       # Nextflow needs to know the HOST path of the data dir for docker.sock mounts
       - HOST_DATA_DIR=${HOST_DATA_DIR:-/var/lib/docker/volumes/genoma_raredx_data/_data}
       - NXF_HOME=/data/.nextflow
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
