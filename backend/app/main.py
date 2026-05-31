@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import create_tables
-from app.api.routes import pipeline, report, demo, auth, cases, proxy, pipelines
+from app.api.routes import pipeline, report, demo, auth, cases, proxy, pipelines, system
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -39,12 +39,24 @@ async def startup():
 
 
 async def _init_hpo_background():
+    import logging
+    log = logging.getLogger(__name__)
     try:
         from app.services.hpo_ontology import initialize
         await initialize()
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f"HPO ontology init failed (non-fatal): {e}")
+        log.warning(f"HPO ontology init failed (non-fatal): {e}")
+
+    # Auto-trigger RareBench indexing once if the case index is empty.
+    try:
+        from app.services.case_similarity import collection_stats
+        stats = collection_stats()
+        if stats.get("count", 0) < 100:
+            from app.tasks.indexing_tasks import index_rarebench
+            index_rarebench.delay()
+            log.info("Triggered RareBench case indexing (collection was empty).")
+    except Exception as e:
+        log.warning(f"Could not trigger case indexing: {e}")
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
@@ -55,6 +67,7 @@ app.include_router(report.router, prefix="/api")
 app.include_router(demo.router, prefix="/api")
 app.include_router(proxy.router, prefix="/api")
 app.include_router(pipelines.router, prefix="/api")
+app.include_router(system.router, prefix="/api")
 
 
 @app.get("/api/system/status")

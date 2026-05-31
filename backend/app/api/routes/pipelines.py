@@ -24,13 +24,23 @@ class InstallRequest(BaseModel):
 
 
 @router.get("/registry")
-def get_registry():
+def get_registry(db: Session = Depends(get_db)):
     """Curated list of nf-core pipelines available to install."""
+    # Filesystem (nextflow assets) + DB records — either marks it installed.
     installed = set(nfcore_manager.list_installed())
-    registry = nfcore_manager.list_registry()
-    for p in registry:
-        p["installed"] = p["name"] in installed
-    return registry
+    db_installed = {
+        r.name for r in db.query(InstalledPipeline)
+        .filter(InstalledPipeline.status == "installed").all()
+    }
+    installed |= db_installed
+
+    # Return copies so we never mutate the shared module-level registry
+    out = []
+    for p in nfcore_manager.list_registry():
+        item = dict(p)
+        item["installed"] = item["name"] in installed
+        out.append(item)
+    return out
 
 
 @router.get("/installed")

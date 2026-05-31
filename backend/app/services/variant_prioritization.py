@@ -78,22 +78,44 @@ async def prioritize_variants(
     unique.sort(key=_prefilter_rank, reverse=True)
     candidates = unique[:60]   # hard cap — never score more than this
 
-    # ── 3. Score with bounded concurrency (NCBI/gnomAD rate limits) ───────────
-    sem = asyncio.Semaphore(3)        # at most 3 in-flight API calls
-    clinvar_cache: dict = {}          # (gene,cdna) -> significance, shared across variants
+    clinvar_cache: dict = {}          # (gene,cdna) -> significance, shared
 
-    async def _bounded(v):
+    # ── Phase A: fast scoring (ClinVar cached, NO gnomAD network) ─────────────
+    sem = asyncio.Semaphore(2)
+    async def _fast(v):
         async with sem:
-            return await _score_variant(v, similar_genes, clinvar_cache)
+            return await _score_variant(v, similar_genes, clinvar_cache, use_gnomad=False)
 
-    scored = await asyncio.gather(*[_bounded(v) for v in candidates])
-    scored = [s for s in scored if s]
+    scored = [s for s in await asyncio.gather(*[_fast(v) for v in candidates]) if s]
+    scored.sort(key=lambda v: v.get("priority_score") or 0.0, reverse=True)
+
+    # ── Phase B: refine only the top 12 with real gnomAD frequencies ──────────
+    top = scored[:12]
+    gsem = asyncio.Semaphore(2)
+    async def _refine(v):
+        async with gsem:
+            af = await _gnomad_frequency(
+                str(v.get("chromosome", "")), v.get("position", 0),
+                v.get("ref", ""), v.get("alt", ""),
+            )
+            if af is not None:
+                v["gnomad_af"] = af
+                # recompute novelty with the real frequency
+                v["novel"] = (
+                    (not v.get("clinvar_significance") or "Not in ClinVar" in v.get("clinvar_significance", ""))
+                    and af < 0.0001
+                    and (v.get("is_lof") or (v.get("alphamissense") or {}).get("am_class") == "likely_pathogenic")
+                )
+            return v
+
+    await asyncio.gather(*[_refine(v) for v in top])
     scored.sort(key=lambda v: v.get("priority_score") or 0.0, reverse=True)
     return scored
 
 
 async def _score_variant(variant: dict, similar_genes: set,
-                         clinvar_cache: Optional[dict] = None) -> dict:
+                         clinvar_cache: Optional[dict] = None,
+                         use_gnomad: bool = False) -> dict:
     gene = (variant.get("gene") or "").upper()
     chrom = str(variant.get("chromosome", ""))
     pos = variant.get("position", 0)
@@ -105,10 +127,12 @@ async def _score_variant(variant: dict, similar_genes: set,
     # ── 1. AlphaMissense (offline) ────────────────────────────────────────────
     am = alphamissense.lookup(chrom, pos, ref, alt) if chrom and pos else None
 
-    # ── 2. gnomAD frequency ───────────────────────────────────────────────────
-    gnomad_af = await _gnomad_frequency(chrom, pos, ref, alt) if chrom and pos else None
+    # ── 2. gnomAD frequency (network — only for final top candidates) ─────────
+    gnomad_af = None
+    if use_gnomad and chrom and pos:
+        gnomad_af = await _gnomad_frequency(chrom, pos, ref, alt)
     if gnomad_af is None:
-        gnomad_af = variant.get("gnomad_af", 0.0)
+        gnomad_af = float(variant.get("gnomad_af") or 0.0)
 
     # ── 3. ClinVar significance (cached per gene+cdna to avoid duplicate calls) ─
     cache_key = (gene, cdna)
@@ -216,21 +240,27 @@ async def _gnomad_frequency(chrom: str, pos: int, ref: str, alt: str) -> Optiona
       }
     }
     """
-    try:
-        async with httpx.AsyncClient(timeout=12.0) as client:
-            resp = await client.post(GNOMAD_API, json={
-                "query": query,
-                "variables": {"variantId": variant_id},
-            })
-            if resp.status_code == 200:
-                data = resp.json().get("data", {}).get("variant")
-                if data:
-                    genome_af = (data.get("genome") or {}).get("af")
-                    exome_af = (data.get("exome") or {}).get("af")
-                    afs = [a for a in (genome_af, exome_af) if a is not None]
-                    return max(afs) if afs else 0.0
-    except Exception as e:
-        logger.debug(f"gnomAD query failed {variant_id}: {e}")
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                resp = await client.post(GNOMAD_API, json={
+                    "query": query,
+                    "variables": {"variantId": variant_id},
+                })
+                if resp.status_code == 429:
+                    await asyncio.sleep(1.5 * (attempt + 1))  # backoff on rate limit
+                    continue
+                if resp.status_code == 200:
+                    data = resp.json().get("data", {}).get("variant")
+                    if data:
+                        genome_af = (data.get("genome") or {}).get("af")
+                        exome_af = (data.get("exome") or {}).get("af")
+                        afs = [a for a in (genome_af, exome_af) if a is not None]
+                        return max(afs) if afs else 0.0
+                return None
+        except Exception as e:
+            logger.debug(f"gnomAD query failed {variant_id}: {e}")
+            return None
     return None
 
 

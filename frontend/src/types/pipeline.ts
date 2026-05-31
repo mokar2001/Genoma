@@ -55,6 +55,7 @@ export interface LiteratureItem {
 
 export interface PrioritizedVariant {
   gene: string;
+  variant_id?: string;
   cdna_change: string;
   protein_change: string;
   chromosome: string;

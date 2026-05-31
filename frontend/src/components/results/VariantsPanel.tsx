@@ -54,9 +54,16 @@ function VariantRow({ variant: v, index }: { variant: PrioritizedVariant; index:
       <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-sm font-bold text-slate-900 dark:text-white">{v.gene}</span>
-            <span className="font-mono text-xs text-slate-500">{v.cdna_change}</span>
-            <span className="font-mono text-xs text-slate-400">{v.protein_change}</span>
+            {/* Gene as a badge */}
+            <span className="rounded-md bg-indigo-100 px-1.5 py-0.5 font-mono text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+              {v.gene}
+            </span>
+            {/* Unique identifier — rsID / ClinVar id / chr:pos:ref>alt — so rows are distinguishable */}
+            <span className="font-mono text-sm font-bold text-slate-900 dark:text-white">
+              {v.variant_id || `chr${v.chromosome}:${v.position}`}
+            </span>
+            {v.cdna_change && <span className="font-mono text-xs text-slate-500">{v.cdna_change}</span>}
+            {v.protein_change && <span className="font-mono text-xs text-slate-400">{v.protein_change}</span>}
             {v.novel && (
               <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                 <Sparkles className="h-3 w-3" /> Novel
