@@ -50,17 +50,50 @@ async def prioritize_variants(
 
     similar_genes = set(g.upper() for g in (similar_case_genes or []))
 
-    # Score variants concurrently (network calls to gnomAD/ClinVar)
-    scored = await asyncio.gather(*[
-        _score_variant(v, similar_genes) for v in variants[:200]  # cap for perf
-    ])
+    # ── 1. Deduplicate by variant identity ────────────────────────────────────
+    seen: set = set()
+    unique: list[dict] = []
+    for v in variants:
+        key = (
+            v.get("variant_id")
+            or f"{v.get('chromosome')}:{v.get('position')}:{v.get('ref')}>{v.get('alt')}"
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(v)
 
+    # ── 2. Pre-filter to the most informative variants ────────────────────────
+    # Prefer variants that already carry a clinical flag or a known gene, then
+    # rare ones. This avoids scoring tens of thousands of common/UNKNOWN rows.
+    def _prefilter_rank(v: dict):
+        gene = (v.get("gene") or "UNKNOWN").upper()
+        has_clin = bool(v.get("clnsig"))
+        known_gene = gene != "UNKNOWN"
+        in_similar = gene in similar_genes
+        af = float(v.get("gnomad_af") or 0.0)
+        rare = af == 0.0 or af < 0.001
+        return (in_similar, has_clin, known_gene, rare)
+
+    unique.sort(key=_prefilter_rank, reverse=True)
+    candidates = unique[:60]   # hard cap — never score more than this
+
+    # ── 3. Score with bounded concurrency (NCBI/gnomAD rate limits) ───────────
+    sem = asyncio.Semaphore(3)        # at most 3 in-flight API calls
+    clinvar_cache: dict = {}          # (gene,cdna) -> significance, shared across variants
+
+    async def _bounded(v):
+        async with sem:
+            return await _score_variant(v, similar_genes, clinvar_cache)
+
+    scored = await asyncio.gather(*[_bounded(v) for v in candidates])
     scored = [s for s in scored if s]
-    scored.sort(key=lambda v: v["priority_score"], reverse=True)
+    scored.sort(key=lambda v: v.get("priority_score") or 0.0, reverse=True)
     return scored
 
 
-async def _score_variant(variant: dict, similar_genes: set) -> dict:
+async def _score_variant(variant: dict, similar_genes: set,
+                         clinvar_cache: Optional[dict] = None) -> dict:
     gene = (variant.get("gene") or "").upper()
     chrom = str(variant.get("chromosome", ""))
     pos = variant.get("position", 0)
@@ -72,13 +105,20 @@ async def _score_variant(variant: dict, similar_genes: set) -> dict:
     # ── 1. AlphaMissense (offline) ────────────────────────────────────────────
     am = alphamissense.lookup(chrom, pos, ref, alt) if chrom and pos else None
 
-    # ── 2 & 3. gnomAD + ClinVar (live, parallel) ──────────────────────────────
-    gnomad_task = _gnomad_frequency(chrom, pos, ref, alt) if chrom and pos else _noop()
-    clinvar_task = _clinvar_significance(gene, cdna)
-    gnomad_af, clinvar = await asyncio.gather(gnomad_task, clinvar_task)
-
+    # ── 2. gnomAD frequency ───────────────────────────────────────────────────
+    gnomad_af = await _gnomad_frequency(chrom, pos, ref, alt) if chrom and pos else None
     if gnomad_af is None:
         gnomad_af = variant.get("gnomad_af", 0.0)
+
+    # ── 3. ClinVar significance (cached per gene+cdna to avoid duplicate calls) ─
+    cache_key = (gene, cdna)
+    if clinvar_cache is not None and cache_key in clinvar_cache:
+        clinvar = clinvar_cache[cache_key]
+    else:
+        # Prefer the VCF's own CLNSIG annotation before hitting the network
+        clinvar = variant.get("clnsig") or await _clinvar_significance(gene, cdna)
+        if clinvar_cache is not None:
+            clinvar_cache[cache_key] = clinvar
 
     # ── 4. Franklin (gated) ───────────────────────────────────────────────────
     franklin = await _franklin_classify(gene, cdna) if settings.FRANKLIN_API_KEY else None

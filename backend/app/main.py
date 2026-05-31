@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
 
 from app.core.config import settings
 from app.core.database import create_tables
@@ -26,7 +25,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# NOTE: GZipMiddleware intentionally removed — it buffers SSE (text/event-stream)
+# chunks and breaks live progress streaming.
 
 
 @app.on_event("startup")

@@ -48,10 +48,14 @@ async def analyze_structures(prioritized_variants: list[dict],
     Prioritizes novel variants (no ClinVar) since those benefit most from
     structural evidence (the DeepRare upgrade-VUS use case).
     """
-    # Pick variants worth structural analysis: novel first, then high-priority
+    # Pick variants worth structural analysis: novel first, then high-priority.
+    # Coerce to concrete types so None/bool never get compared.
     candidates = sorted(
         prioritized_variants,
-        key=lambda v: (v.get("novel", False), v.get("priority_score", 0)),
+        key=lambda v: (
+            1 if v.get("novel") else 0,
+            float(v.get("priority_score") or 0.0),
+        ),
         reverse=True,
     )
 
