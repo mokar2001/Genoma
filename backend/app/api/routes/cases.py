@@ -137,17 +137,33 @@ async def upload_file(case_id: str, file: UploadFile = File(...),
             "input_type": case.input_type}
 
 
+class RunRequest(BaseModel):
+    use_sample: bool = False
+
+
 @router.post("/{case_id}/run")
-def run_case(case_id: str, db: Session = Depends(get_db),
+def run_case(case_id: str, body: RunRequest | None = None,
+             db: Session = Depends(get_db),
              user: User = Depends(get_current_user)):
     case = _owned(db, case_id, user)
+    use_sample = bool(body and body.use_sample)
+
+    # When "use sample" is requested, point the case at the server's bundled VCF.
+    if use_sample:
+        from app.services.sample_data import resolve_sample_vcf
+        symptoms = (case.patient_data or {}).get("symptoms", [])
+        sample_path = resolve_sample_vcf(symptoms)
+        case.vcf_path = sample_path
+        case.input_type = "vcf"
+        case.vcf_filename = sample_path.split("/")[-1] if sample_path else None
+
     case.status = CaseStatus.PHENOTYPING
     case.progress = 0
     case.error = None
     db.commit()
 
     from app.tasks.pipeline_tasks import run_diagnosis
-    task = run_diagnosis.delay(case_id)
+    task = run_diagnosis.delay(case_id, use_sample)
     return {"task_id": task.id, "case_id": case_id, "status": "queued"}
 
 

@@ -26,7 +26,11 @@ export default function DiagnosticsPage() {
     enabled: !!demoId,
   });
 
-  const handleSubmit = async (data: PatientFormValues, file: File | null) => {
+  const handleSubmit = async (
+    data: PatientFormValues,
+    file: File | null,
+    useSample: boolean,
+  ) => {
     reset();
     setRunning(true);
     setOverallProgress(0);
@@ -48,8 +52,8 @@ export default function DiagnosticsPage() {
       });
       const caseId: string = created.id;
 
-      // 2. Upload genomic file (if any)
-      if (file && file.size > 0) {
+      // 2. Upload genomic file (if any, and not using the server sample)
+      if (!useSample && file && file.size > 0) {
         const fd = new FormData();
         fd.append("file", file);
         toast.info("Uploading genomic file…");
@@ -58,8 +62,8 @@ export default function DiagnosticsPage() {
         });
       }
 
-      // 3. Kick off the pipeline
-      await axios.post(`/api/cases/${caseId}/run`);
+      // 3. Kick off the pipeline (use_sample loads the server's bundled VCF)
+      await axios.post(`/api/cases/${caseId}/run`, { use_sample: useSample });
 
       // 4. Stream live progress via SSE (fetch — to send the auth header)
       const resp = await fetch(`/api/cases/${caseId}/stream`, {

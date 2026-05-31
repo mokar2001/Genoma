@@ -56,13 +56,14 @@ const STEPS = [
 
 interface Props {
   defaultValues?: Partial<PatientFormValues>;
-  onSubmit: (data: PatientFormValues, file: File | null) => void;
+  onSubmit: (data: PatientFormValues, file: File | null, useSample: boolean) => void;
   loading?: boolean;
 }
 
 export default function PatientForm({ defaultValues, onSubmit, loading }: Props) {
   const [step, setStep] = useState(0);
   const [vcfFile, setVcfFile] = useState<File | null>(null);
+  const [useSample, setUseSample] = useState(false);
 
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(schema) as any,
@@ -81,7 +82,7 @@ export default function PatientForm({ defaultValues, onSubmit, loading }: Props)
   const { register, handleSubmit, watch, setValue, formState: { errors } } = form;
 
   const handleFinalSubmit = (data: PatientFormValues) => {
-    onSubmit(data, vcfFile as File);
+    onSubmit(data, vcfFile as File, useSample);
   };
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
@@ -246,7 +247,12 @@ export default function PatientForm({ defaultValues, onSubmit, loading }: Props)
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
                   Genomic Data
                 </h3>
-                <VcfUploader file={vcfFile} onFile={setVcfFile} />
+                <VcfUploader
+                  file={vcfFile}
+                  onFile={setVcfFile}
+                  useSample={useSample}
+                  onUseSample={setUseSample}
+                />
                 <p className="text-xs text-slate-500">
                   If no VCF is uploaded, the pipeline will use demo variant data matched to your symptoms.
                 </p>

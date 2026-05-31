@@ -36,8 +36,12 @@ def _set_case(db, case: Case, **fields):
 
 
 @celery.task(name="app.tasks.pipeline_tasks.run_diagnosis", bind=True)
-def run_diagnosis(self, case_id: str):
-    """Entry point — runs the async pipeline in an event loop."""
+def run_diagnosis(self, case_id: str, use_sample: bool = False):
+    """Entry point — runs the async pipeline in an event loop.
+
+    use_sample: when True the case.vcf_path was already pointed at a bundled
+    server sample VCF by the /run route, so the pipeline simply parses it.
+    """
     return asyncio.run(_run_diagnosis_async(case_id))
 
 
