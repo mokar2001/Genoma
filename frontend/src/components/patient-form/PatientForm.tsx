@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -64,6 +64,8 @@ export default function PatientForm({ defaultValues, onSubmit, loading }: Props)
   const [step, setStep] = useState(0);
   const [vcfFile, setVcfFile] = useState<File | null>(null);
   const [useSample, setUseSample] = useState(false);
+  // Only set true by an explicit click on the Run button.
+  const runIntentRef = useRef(false);
 
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(schema) as any,
@@ -82,16 +84,22 @@ export default function PatientForm({ defaultValues, onSubmit, loading }: Props)
   const { register, handleSubmit, watch, setValue, formState: { errors } } = form;
 
   const handleFinalSubmit = (data: PatientFormValues) => {
-    // Only actually run the pipeline from the final (Genomics) step.
-    // Guards against Enter-key submits on earlier steps.
-    if (step !== STEPS.length - 1) {
-      setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    // Hard guard: only proceed if the user physically clicked Run,
+    // and only on the final (Genomics) step.
+    if (!runIntentRef.current || step !== STEPS.length - 1) {
+      runIntentRef.current = false;
       return;
     }
+    runIntentRef.current = false;
     onSubmit(data, vcfFile as File, useSample);
   };
 
-  // Prevent Enter in text inputs from submitting the form (textarea is fine)
+  const triggerRun = () => {
+    runIntentRef.current = true;
+    handleSubmit(handleFinalSubmit)();
+  };
+
+  // Prevent Enter anywhere in the form from submitting (textarea newline is fine)
   const blockEnterSubmit = (e: React.KeyboardEvent<HTMLFormElement>) => {
     const target = e.target as HTMLElement;
     if (e.key === "Enter" && target.tagName !== "TEXTAREA") {
@@ -142,7 +150,11 @@ export default function PatientForm({ defaultValues, onSubmit, loading }: Props)
         ))}
       </div>
 
-      <form onSubmit={handleSubmit(handleFinalSubmit)} onKeyDown={blockEnterSubmit} className="space-y-6">
+      <form
+        onSubmit={(e) => e.preventDefault()}
+        onKeyDown={blockEnterSubmit}
+        className="space-y-6"
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -296,7 +308,8 @@ export default function PatientForm({ defaultValues, onSubmit, loading }: Props)
             </button>
           ) : (
             <button
-              type="submit"
+              type="button"
+              onClick={triggerRun}
               disabled={loading}
               className="gradient-brand flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 disabled:opacity-70"
             >
