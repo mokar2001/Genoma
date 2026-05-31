@@ -34,6 +34,10 @@ celery.conf.update(
     },
 )
 
+# Import all ORM models up front so SQLAlchemy's mapper registry is complete
+# in the worker process (prevents 'failed to locate name User' mapper errors).
+import app.models.db  # noqa: E402,F401
+
 # Ensure task modules are imported so Celery registers them
 celery.autodiscover_tasks(["app.tasks"])
 
