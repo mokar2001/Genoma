@@ -214,6 +214,42 @@ Return: {{"validated": [...same candidates with updated scores...], "reflection_
     return {"validated": candidates}
 
 
+async def llm_extract_hpo(free_text: str) -> list[str]:
+    """
+    Extract phenotype phrases from free-text clinical description.
+    Returns a list of short phenotype phrases (mapped to HPO downstream).
+    """
+    if settings.MOCK_MODE or not (settings.OPENAI_API_KEY or settings.ANTHROPIC_API_KEY):
+        return []
+    if not free_text or not free_text.strip():
+        return []
+
+    prompt = (
+        "Extract clinical phenotype terms from this text. "
+        "Return ONLY a JSON object with a 'terms' array of short phrases "
+        '(e.g. {"terms":["aortic root dilation","arachnodactyly"]}).\n\n'
+        f"Text: {free_text[:2000]}"
+    )
+
+    try:
+        if settings.OPENAI_API_KEY:
+            result = await _call_openai(prompt)
+        elif settings.ANTHROPIC_API_KEY:
+            result = await _call_anthropic(prompt)
+        else:
+            return []
+
+        if isinstance(result, dict):
+            terms = result.get("terms") or result.get("phenotypes") or []
+            if isinstance(terms, list):
+                return [str(t).strip() for t in terms if str(t).strip()]
+        if isinstance(result, list):
+            return [str(t).strip() for t in result if str(t).strip()]
+    except Exception as e:
+        logger.debug(f"HPO extraction failed: {e}")
+    return []
+
+
 async def llm_clinical_inquiry(
     patient_data: dict,
     symptoms: list[str],
