@@ -132,11 +132,19 @@ async def _run_diagnosis_async(case_id: str):
                  "Prioritizing variants (AlphaMissense+gnomAD+ClinVar)…")
             from app.services.variant_prioritization import prioritize_variants
             prioritized = await prioritize_variants(variants, hpo_names, similar_genes)
-            _set_case(db, case, variants=variants, prioritized_variants=prioritized)
+            # Keep only the top-ranked variants — never persist the full WGS list.
+            prioritized = prioritized[:100]
+            variants_to_store = prioritized[:100]
+            _set_case(db, case,
+                      variants=variants_to_store,
+                      prioritized_variants=prioritized)
             novel = sum(1 for v in prioritized if v.get("novel"))
             step("prioritization", "complete", 80,
                  f"{len(prioritized)} variants ranked, {novel} novel.",
                  {"count": len(prioritized), "novel": novel})
+
+        # From here on, downstream stages use the small prioritized set only.
+        analysis_variants = prioritized if prioritized else variants[:100]
 
         # ── 5. Structural analysis ────────────────────────────────────────────
         structures = []
@@ -154,14 +162,14 @@ async def _run_diagnosis_async(case_id: str):
         from app.services.deeprare_service import run_deeprare
         deeprare = await run_deeprare(
             symptoms=hpo_names or (patient.get("symptoms") or []),
-            variants=variants,
+            variants=analysis_variants,
             suspected_diseases=patient.get("suspected_diseases"),
             patient_meta=patient,
         )
 
-        # ── 7. ACMG (on prioritized variants) ─────────────────────────────────
+        # ── 7. ACMG (on prioritized variants only) ────────────────────────────
         from app.services.acmg_service import run_acmg
-        acmg = await run_acmg(variants) if variants else None
+        acmg = await run_acmg(analysis_variants) if analysis_variants else None
 
         # ── Assemble result ───────────────────────────────────────────────────
         result = {
